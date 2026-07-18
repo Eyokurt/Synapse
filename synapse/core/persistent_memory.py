@@ -26,11 +26,8 @@ class SQLiteMemory:
         """)
         self.conn.commit()
 
-    def add_message(self, message: Dict[str, Any]) -> Optional[int]:
-        role = message.get("role")
-        content = message.get("content")
-        tool_calls = message.get("tool_calls")
-        tool_call_id = message.get("tool_call_id")
+    def add_message(self, role: str, content: str, tool_calls=None, tool_call_id=None) -> Optional[int]:
+
         
         tool_calls_json = json.dumps(tool_calls) if tool_calls else None
 
