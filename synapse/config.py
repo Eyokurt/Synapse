@@ -19,7 +19,7 @@ class SynapseConfig:
     
     # Audio Processing Defaults
     audio_sample_rate: int = 16000
-    audio_chunk_duration_ms: int = 512
+    audio_chunk_duration_ms: int = 32 # Silero VAD expects 512 samples at 16kHz (32ms)
     vad_speech_threshold: float = 0.5
     vad_silence_duration_ms: int = 1500  # Time in MS of silence before triggering end of speech
 
