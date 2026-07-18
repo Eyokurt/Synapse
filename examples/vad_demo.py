@@ -20,8 +20,8 @@ def main():
         sys.stdout.write("• ")
         sys.stdout.flush()
         
-    def on_end():
-        print(f"\n[🔇] Konuşma Bitti. ({custom_config.vad_silence_duration_ms}ms suskunluk tespit edildi)")
+    def on_end(audio_data: np.ndarray):
+        print(f"\n[🔇] Konuşma Bitti. ({custom_config.vad_silence_duration_ms}ms suskunluk tespit edildi, {len(audio_data)} samples kaydedildi)")
         
     loop.on_speech_start = on_start
     loop.on_speech_ongoing = on_ongoing

@@ -2,19 +2,20 @@ import queue
 import numpy as np
 
 from synapse.config import SynapseConfig, default_config
+from synapse.audio.utils import resample_audio
 from typing import Optional
 
 class AudioStreamer:
     """
     Captures live audio from the microphone using PyAudio/SoundDevice.
     Requires sounddevice and numpy.
+    Automatically handles hardware sample rate mismatches by resampling to config sample rate.
     """
     def __init__(self, sample_rate: Optional[int] = None, chunk_duration_ms: Optional[int] = None, config: Optional[SynapseConfig] = None):
         self.config = config or default_config
-        self.sample_rate = sample_rate or self.config.audio_sample_rate
+        self.target_sample_rate = sample_rate or self.config.audio_sample_rate
         self.chunk_duration_ms = chunk_duration_ms or self.config.audio_chunk_duration_ms
-        # Calculate chunk size in frames
-        self.chunk_size = int(self.sample_rate * self.chunk_duration_ms / 1000)
+        
         self.audio_queue = queue.Queue()
         self.stream = None
         
@@ -26,21 +27,33 @@ class AudioStreamer:
                 "Install it with `uv add centrumlib[audio]` or `pip install sounddevice numpy`"
             )
         self.sd = sd
+        
+        # Get native sample rate
+        device_info = self.sd.query_devices(self.sd.default.device[0], 'input')
+        self.native_sr = int(device_info['default_samplerate'])
+        
+        # Calculate chunk size in native frames
+        self.native_chunk_size = int(self.native_sr * self.chunk_duration_ms / 1000)
 
     def _audio_callback(self, indata, frames, time, status):
         """Called by sounddevice for each audio block."""
         if status:
             print(f"Audio status warning: {status}")
-        # Convert audio to mono (channel 0) and copy it
+        
         audio_data = indata[:, 0].copy()
+        
+        # Resample to target sample rate (e.g. 16000 for VAD)
+        if self.native_sr != self.target_sample_rate:
+            audio_data = resample_audio(audio_data, self.native_sr, self.target_sample_rate)
+            
         self.audio_queue.put(audio_data)
 
     def start(self):
         """Starts capturing audio from the default microphone."""
         self.stream = self.sd.InputStream(
-            samplerate=self.sample_rate,
+            samplerate=self.native_sr,
             channels=1,
-            blocksize=self.chunk_size,
+            blocksize=self.native_chunk_size,
             dtype=np.float32,
             callback=self._audio_callback
         )
