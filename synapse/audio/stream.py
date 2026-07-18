@@ -1,15 +1,20 @@
 import queue
 import numpy as np
 
+from synapse.config import SynapseConfig, default_config
+from typing import Optional
+
 class AudioStreamer:
     """
     Captures live audio from the microphone using PyAudio/SoundDevice.
     Requires sounddevice and numpy.
     """
-    def __init__(self, sample_rate: int = 16000, chunk_duration_ms: int = 512):
-        self.sample_rate = sample_rate
+    def __init__(self, sample_rate: Optional[int] = None, chunk_duration_ms: Optional[int] = None, config: Optional[SynapseConfig] = None):
+        self.config = config or default_config
+        self.sample_rate = sample_rate or self.config.audio_sample_rate
+        self.chunk_duration_ms = chunk_duration_ms or self.config.audio_chunk_duration_ms
         # Calculate chunk size in frames
-        self.chunk_size = int(sample_rate * chunk_duration_ms / 1000)
+        self.chunk_size = int(self.sample_rate * self.chunk_duration_ms / 1000)
         self.audio_queue = queue.Queue()
         self.stream = None
         
@@ -48,11 +53,9 @@ class AudioStreamer:
             self.stream.close()
             self.stream = None
 
-    def get_chunk(self):
+    def get_chunk(self) -> np.ndarray:
         """
         Gets the next chunk of audio from the queue, blocking until available.
-        Returns a 1D torch.Tensor.
+        Returns a 1D numpy array.
         """
-        import torch
-        audio_data = self.audio_queue.get()
-        return torch.from_numpy(audio_data).float()
+        return self.audio_queue.get()

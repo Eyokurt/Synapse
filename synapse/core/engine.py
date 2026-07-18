@@ -5,6 +5,8 @@ from synapse.core.event_bus import EventBus
 from synapse.tools.registry import ToolRegistry
 from synapse.llm.base import BaseLLMAdapter
 
+from synapse.config import SynapseConfig, default_config
+
 logger = logging.getLogger(__name__)
 
 class AgentEngine:
@@ -14,14 +16,16 @@ class AgentEngine:
         memory: Memory,
         event_bus: EventBus,
         tool_registry: ToolRegistry,
-        max_iterations: int = 10
+        max_iterations: Optional[int] = None,
+        config: Optional[SynapseConfig] = None
     ) -> None:
+        self.config = config or default_config
         self.llm = llm
         self.memory = memory
         self.event_bus = event_bus
         self.tool_registry = tool_registry
         self.agentic_mode = False
-        self.max_iterations = max_iterations
+        self.max_iterations = max_iterations or self.config.max_agentic_iterations
 
     async def process(self, user_input: str, agentic_mode: bool = False) -> str:
         self.agentic_mode = agentic_mode

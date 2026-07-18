@@ -1,55 +1,58 @@
-import torch
+import os
+import numpy as np
+
+from synapse.config import SynapseConfig, default_config
+from typing import Optional
 
 class SileroVAD:
     """
-    Voice Activity Detection using Silero VAD.
-    Requires torch and torchaudio to be installed.
+    Voice Activity Detection using Silero VAD (ONNX).
+    Requires onnxruntime and httpx to be installed.
     """
-    def __init__(self, sample_rate: int = 16000, threshold: float = 0.5):
-        self.sample_rate = sample_rate
-        self.threshold = threshold
+    def __init__(self, sample_rate: Optional[int] = None, threshold: Optional[float] = None, config: Optional[SynapseConfig] = None):
+        self.config = config or default_config
+        self.sample_rate = sample_rate or self.config.audio_sample_rate
+        self.threshold = threshold if threshold is not None else self.config.vad_speech_threshold
         
         try:
-            import torch
+            import onnxruntime
+            import httpx
         except ImportError:
             raise ImportError(
-                "PyTorch is required for Silero VAD. "
-                "Install it with `uv add centrumlib[audio]` or `pip install torch torchaudio`"
+                "onnxruntime and httpx are required for Silero VAD. "
+                "Install them with `uv add centrumlib[audio]` or `pip install onnxruntime httpx`"
             )
 
-        print("Loading Silero VAD model (may take a moment the first time)...")
-        # Load the model from torch hub
-        self.model, utils = torch.hub.load(
-            repo_or_dir='snakers4/silero-vad',
-            model='silero_vad',
-            force_reload=False,
-            trust_repo=True
-        )
-        self.get_speech_timestamps, _, _, self.VADIterator, _ = utils
-        # Use VADIterator for robust start/end endpointing if needed, 
-        # but for simple chunk probability we can just use the model directly.
-        self.vad_iterator = self.VADIterator(self.model, sampling_rate=self.sample_rate)
+        self.model_path = os.path.join(os.path.dirname(__file__), "silero_vad.onnx")
+        self._download_model_if_needed(httpx)
 
-    def is_speech(self, audio_chunk: torch.Tensor) -> bool:
+        self.session = onnxruntime.InferenceSession(self.model_path)
+        self.state = np.zeros((2, 1, 128), dtype=np.float32)
+        self.sr_tensor = np.array([self.sample_rate], dtype=np.int64)
+
+    def _download_model_if_needed(self, httpx):
+        if not os.path.exists(self.model_path):
+            print("Downloading Silero VAD ONNX model (~1.8 MB)...")
+            url = "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx"
+            response = httpx.get(url, follow_redirects=True)
+            with open(self.model_path, "wb") as f:
+                f.write(response.content)
+
+    def is_speech(self, audio_chunk: np.ndarray) -> bool:
         """
         Calculates the probability of speech in a given raw audio chunk.
-        audio_chunk should be a 1D torch.Tensor of floats.
+        audio_chunk should be a 1D numpy array of float32.
         """
-        # The model expects a batch dimension: (batch, samples)
-        if audio_chunk.dim() == 1:
-            audio_chunk = audio_chunk.unsqueeze(0)
+        if audio_chunk.ndim == 1:
+            audio_chunk = np.expand_dims(audio_chunk, axis=0)
             
-        with torch.no_grad():
-            confidence = self.model(audio_chunk, self.sample_rate).item()
-            
+        inputs = {
+            "input": audio_chunk.astype(np.float32),
+            "sr": self.sr_tensor,
+            "state": self.state
+        }
+        
+        out, self.state = self.session.run(None, inputs)
+        confidence = out[0][0]
+        
         return confidence >= self.threshold
-
-    def process_stream_chunk(self, audio_chunk: torch.Tensor):
-        """
-        Advanced iterator that tracks state and returns a dict when speech starts or ends.
-        Returns:
-            {'start': int} if speech started
-            {'end': int} if speech ended
-            None if no change in state
-        """
-        return self.vad_iterator(audio_chunk, return_seconds=True)

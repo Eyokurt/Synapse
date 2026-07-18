@@ -2,15 +2,17 @@ import json
 from typing import Any, Dict, List, Optional
 from anthropic import AsyncAnthropic
 from synapse.llm.base import BaseLLMAdapter, LLMResponse
+from synapse.config import SynapseConfig, default_config
 
 class AnthropicAdapter(BaseLLMAdapter):
     """
     Adapter for Anthropic Claude models.
     Automatically maps OpenAI-style message and tool formats to Anthropic formats.
     """
-    def __init__(self, api_key: str, model: str = "claude-3-haiku-20240307"):
+    def __init__(self, api_key: str, model: Optional[str] = None, config: Optional[SynapseConfig] = None):
+        self.config = config or default_config
         self.client = AsyncAnthropic(api_key=api_key)
-        self.model = model
+        self.model = model or self.config.default_anthropic_model
 
     async def generate(
         self,

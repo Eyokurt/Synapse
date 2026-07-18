@@ -4,13 +4,16 @@ from openai import AsyncOpenAI
 
 from synapse.llm.base import BaseLLMAdapter, LLMResponse
 
+from synapse.config import SynapseConfig, default_config
+
 class OpenAIAdapter(BaseLLMAdapter):
-    def __init__(self, model: str = "gpt-4o", api_key: Optional[str] = None):
+    def __init__(self, model: Optional[str] = None, api_key: Optional[str] = None, config: Optional[SynapseConfig] = None):
+        self.config = config or default_config
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not set and no api_key was provided")
         self.client = AsyncOpenAI(api_key=self.api_key)
-        self.model = model
+        self.model = model or self.config.default_openai_model
 
     async def generate(
         self,

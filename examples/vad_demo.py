@@ -1,55 +1,36 @@
 import sys
-import time
-from synapse.audio.vad import SileroVAD
-from synapse.audio.stream import AudioStreamer
+from synapse.config import SynapseConfig
+from synapse.audio.voice_loop import VoiceLoop
 
 def main():
     print("--- Synapse VAD (Voice Activity Detection) Demo ---")
-    print("Initializing Silero VAD...")
     
-    # 1. Initialize VAD
-    vad = SileroVAD(sample_rate=16000, threshold=0.5)
+    # Example of overriding default config
+    custom_config = SynapseConfig(
+        vad_silence_duration_ms=2000, # Wait 2 seconds instead of 1.5
+        vad_speech_threshold=0.6      # Slightly more strict detection
+    )
     
-    # 2. Initialize Streamer
-    # 512ms chunk is recommended for Silero VAD for stable detection
-    streamer = AudioStreamer(sample_rate=16000, chunk_duration_ms=512)
+    loop = VoiceLoop(config=custom_config)
     
-    print("\nStarting microphone stream... (Press Ctrl+C to stop)")
-    streamer.start()
-    
-    try:
-        # State tracking
-        is_talking = False
-        silence_chunks = 0
+    def on_start():
+        print("\n[🎙️] Konuşma Başladı! Sizi dinliyorum...")
         
-        while True:
-            # Block and wait for 512ms of audio
-            chunk = streamer.get_chunk()
-            
-            # Ask the VAD if there is a voice
-            has_voice = vad.is_speech(chunk)
-            
-            if has_voice:
-                if not is_talking:
-                    print("\n[🎙️] Konuşma Başladı! Sizi dinliyorum...")
-                    is_talking = True
-                else:
-                    # Print dots to show continuous speech
-                    sys.stdout.write("• ")
-                    sys.stdout.flush()
-                silence_chunks = 0
-            else:
-                if is_talking:
-                    silence_chunks += 1
-                    # If 3 consecutive chunks (1.5 seconds) are silence, we assume they stopped.
-                    if silence_chunks >= 3:
-                        print("\n[🔇] Konuşma Bitti. Suskunluk tespit edildi.")
-                        is_talking = False
-                        silence_chunks = 0
-    except KeyboardInterrupt:
-        print("\nStopping stream...")
-    finally:
-        streamer.stop()
+    def on_ongoing():
+        sys.stdout.write("• ")
+        sys.stdout.flush()
+        
+    def on_end():
+        print(f"\n[🔇] Konuşma Bitti. ({custom_config.vad_silence_duration_ms}ms suskunluk tespit edildi)")
+        
+    loop.on_speech_start = on_start
+    loop.on_speech_ongoing = on_ongoing
+    loop.on_speech_end = on_end
+    
+    print(f"\nAyarlar: {custom_config.vad_silence_duration_ms}ms suskunluk süresi, {custom_config.vad_speech_threshold} eşik")
+    print("Starting microphone stream... (Press Ctrl+C to stop)")
+    
+    loop.start()
 
 if __name__ == "__main__":
     main()
