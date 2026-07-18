@@ -60,8 +60,9 @@ class AgentEngine:
                 
             for tool_call in response.tool_calls:
                 tool_call_id = tool_call.get("id")
-                name = tool_call.get("name", "")
-                args_str = tool_call.get("arguments", "{}")
+                func = tool_call.get("function", tool_call)
+                name = func.get("name", "")
+                args_str = func.get("arguments", "{}")
                 
                 try:
                     args = json.loads(args_str)
@@ -69,6 +70,7 @@ class AgentEngine:
                     args = {}
                     
                 try:
+                    await self.event_bus.emit("on_tool_call", name, args)
                     result = await self.tool_registry.execute(name, **args)
                     result_str = str(result)
                 except Exception as e:

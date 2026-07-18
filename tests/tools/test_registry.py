@@ -46,8 +46,8 @@ def test_get_schemas() -> None:
     schemas = registry.get_schemas()
     assert len(schemas) == 1
     schema = schemas[0]
-    assert schema["name"] == "power"
-    assert schema["description"] == "Calculate power"
+    assert schema["function"]["name"] == "power"
+    assert schema["function"]["description"] == "Calculate power"
 
 @pytest.mark.asyncio
 async def test_execute_tool_error_handling() -> None:
