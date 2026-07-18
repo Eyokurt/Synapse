@@ -13,3 +13,11 @@ dependencies = [
     "pytest-asyncio>=1.4.0",
     "python-dotenv>=1.2.2",
 ]
+
+[project.optional-dependencies]
+audio = [
+    "numpy>=2.5.1",
+    "sounddevice>=0.5.5",
+    "torch>=2.13.0",
+    "torchaudio>=2.11.0",
+]
