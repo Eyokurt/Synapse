@@ -32,19 +32,21 @@ class AudioStreamer:
         device_info = self.sd.query_devices(self.sd.default.device[0], 'input')
         self.native_sr = int(device_info['default_samplerate'])
         
+        # Calculate expected exact length for VAD (e.g. 512 samples)
+        self.target_chunk_size = int(self.target_sample_rate * self.chunk_duration_ms / 1000)
         # Calculate chunk size in native frames
         self.native_chunk_size = int(self.native_sr * self.chunk_duration_ms / 1000)
 
     def _audio_callback(self, indata, frames, time, status):
         """Called by sounddevice for each audio block."""
         if status:
-            print(f"Audio status warning: {status}")
+            pass # Ignore minor underflows to prevent console spam
         
         audio_data = indata[:, 0].copy()
         
-        # Resample to target sample rate (e.g. 16000 for VAD)
-        if self.native_sr != self.target_sample_rate:
-            audio_data = resample_audio(audio_data, self.native_sr, self.target_sample_rate)
+        # Resample to EXACT target chunk size (e.g. 512)
+        if len(audio_data) != self.target_chunk_size:
+            audio_data = resample_audio(audio_data, self.target_chunk_size)
             
         self.audio_queue.put(audio_data)
 
