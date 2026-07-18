@@ -28,7 +28,8 @@ class SileroVAD:
 
         self.session = onnxruntime.InferenceSession(self.model_path)
         self.state = np.zeros((2, 1, 128), dtype=np.float32)
-        self.sr_tensor = np.array([self.sample_rate], dtype=np.int64)
+        # 0-D Scalar Tensor for sample rate (ONNX requires this exact shape, otherwise STFT paths fail silently)
+        self.sr_tensor = np.array(self.sample_rate, dtype=np.int64)
 
     def _download_model_if_needed(self, httpx):
         if not os.path.exists(self.model_path):
