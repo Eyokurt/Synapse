@@ -48,3 +48,26 @@ def test_get_schemas() -> None:
     schema = schemas[0]
     assert schema["name"] == "power"
     assert schema["description"] == "Calculate power"
+
+@pytest.mark.asyncio
+async def test_execute_tool_error_handling() -> None:
+    registry = ToolRegistry()
+    
+    @agent_tool(registry=registry)
+    def crash_tool(a: int) -> int:
+        raise RuntimeError("I crashed!")
+        
+    res_unregistered = await registry.execute_tool("missing", {"a": 1})
+    assert isinstance(res_unregistered, str)
+    assert "Error executing missing:" in res_unregistered
+    
+    res_crash = await registry.execute_tool("crash_tool", {"a": 1})
+    assert isinstance(res_crash, str)
+    assert "Error executing crash_tool: I crashed!" in res_crash
+    
+    @agent_tool(registry=registry)
+    def ok_tool(a: int) -> int:
+        return a * 2
+        
+    res_ok = await registry.execute_tool("ok_tool", {"a": 2})
+    assert res_ok == 4

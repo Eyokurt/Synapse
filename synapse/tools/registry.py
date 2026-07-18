@@ -21,6 +21,12 @@ class ToolRegistry:
         else:
             return await asyncio.to_thread(func, **kwargs)
 
+    async def execute_tool(self, name: str, arguments: dict) -> Any:
+        try:
+            return await self.execute(name, **arguments)
+        except Exception as e:
+            return f"Error executing {name}: {str(e)}"
+
     def get_schemas(self) -> List[Dict[str, Any]]:
         schemas: List[Dict[str, Any]] = []
         for name, desc in self.tool_descriptions.items():
