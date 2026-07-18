@@ -29,10 +29,31 @@ class ToolRegistry:
 
     def get_schemas(self) -> List[Dict[str, Any]]:
         schemas: List[Dict[str, Any]] = []
-        for name, desc in self.tool_descriptions.items():
+        for name, func in self.tools.items():
+            desc = self.tool_descriptions.get(name, "")
+            sig = inspect.signature(func)
+            properties = {}
+            required = []
+            for param_name, param in sig.parameters.items():
+                param_type = "string"  # default
+                if param.annotation is int: param_type = "integer"
+                elif param.annotation is bool: param_type = "boolean"
+                
+                properties[param_name] = {"type": param_type}
+                if param.default == inspect.Parameter.empty:
+                    required.append(param_name)
+                    
             schemas.append({
-                "name": name,
-                "description": desc
+                "type": "function",
+                "function": {
+                    "name": name,
+                    "description": desc,
+                    "parameters": {
+                        "type": "object",
+                        "properties": properties,
+                        "required": required
+                    }
+                }
             })
         return schemas
 

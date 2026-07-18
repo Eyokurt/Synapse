@@ -60,9 +60,8 @@ class AgentEngine:
                 
             for tool_call in response.tool_calls:
                 tool_call_id = tool_call.get("id")
-                function_info = tool_call.get("function", {})
-                name = function_info.get("name", "")
-                args_str = function_info.get("arguments", "{}")
+                name = tool_call.get("name", "")
+                args_str = tool_call.get("arguments", "{}")
                 
                 try:
                     args = json.loads(args_str)

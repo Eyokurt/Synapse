@@ -17,9 +17,27 @@ class OpenAIAdapter(BaseLLMAdapter):
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None
     ) -> LLMResponse:
+        formatted_messages = []
+        for msg in messages:
+            formatted = {"role": msg["role"], "content": msg.get("content", "")}
+            if "tool_calls" in msg and msg["tool_calls"]:
+                formatted["tool_calls"] = [
+                    {
+                        "id": tc["id"],
+                        "type": "function",
+                        "function": {
+                            "name": tc["name"],
+                            "arguments": tc["arguments"]
+                        }
+                    } for tc in msg["tool_calls"]
+                ]
+            if "tool_call_id" in msg:
+                formatted["tool_call_id"] = msg["tool_call_id"]
+            formatted_messages.append(formatted)
+
         kwargs: Dict[str, Any] = {
             "model": self.model,
-            "messages": messages,
+            "messages": formatted_messages,
         }
         if tools:
             kwargs["tools"] = tools
