@@ -12,6 +12,17 @@ class ToolRegistry:
         self.tool_descriptions[func.__name__] = description or func.__doc__ or ""
         return func
 
+    def register_builtins(self, toolkits: List[str]) -> None:
+        import importlib
+        allowed_toolkits = {"file_system", "system", "web_search"}
+        for tk in toolkits:
+            if tk not in allowed_toolkits:
+                raise ValueError(f"Unknown builtin toolkit: {tk}")
+            module = importlib.import_module(f"synapse.tools.builtin.{tk}")
+            for name, func in inspect.getmembers(module, inspect.isfunction):
+                if not name.startswith("_"):
+                    self.register(func)
+
     async def execute(self, name: str, **kwargs: Any) -> Any:
         if name not in self.tools:
             raise ValueError(f"Tool {name} not found")
