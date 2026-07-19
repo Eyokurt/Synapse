@@ -30,16 +30,20 @@ class FasterWhisperSTTAdapter(BaseSTTAdapter):
                 pass
                 
             if not cuda_available:
-                print("\n[FasterWhisper] Uyarı: Sisteminizde NVIDIA CUDA kütüphaneleri bulunamadı.")
-                print("[FasterWhisper] GPU hızlandırmasını aktif edebilmek için gerekli paketler otomatik indiriliyor...")
-                print("[FasterWhisper] Bu işlem yaklaşık 500-700 MB sürebilir, lütfen sabırla bekleyin (sadece ilk seferde yapılır).")
+                print("\n[FasterWhisper] Warning: NVIDIA CUDA libraries not found on your system.")
+                print("[FasterWhisper] Automatically downloading required packages to enable GPU acceleration...")
+                print("[FasterWhisper] This process may take around 500-700 MB. Please wait patiently (only done once).")
                 
                 try:
                     import subprocess
                     import site
+                    import shutil
                     
-                    # Install nvidia packages
-                    subprocess.check_call([sys.executable, "-m", "pip", "install", "nvidia-cublas-cu12", "nvidia-cudnn-cu12"])
+                    # Install nvidia packages using uv if available, else pip
+                    if shutil.which("uv"):
+                        subprocess.check_call(["uv", "pip", "install", "nvidia-cublas-cu12", "nvidia-cudnn-cu12"])
+                    else:
+                        subprocess.check_call([sys.executable, "-m", "pip", "install", "nvidia-cublas-cu12", "nvidia-cudnn-cu12"])
                     
                     # Inject DLL directories
                     for sp in site.getsitepackages():
@@ -55,12 +59,12 @@ class FasterWhisperSTTAdapter(BaseSTTAdapter):
                     # Verify
                     ctypes.CDLL("cublas64_12.dll")
                     cuda_available = True
-                    print("[FasterWhisper] ✅ CUDA kütüphaneleri başarıyla indirildi ve sisteme entegre edildi!\n")
+                    print("[FasterWhisper] ✅ CUDA libraries successfully downloaded and injected into the system!\n")
                 except Exception as e:
-                    print(f"\n[FasterWhisper] ❌ Otomatik indirme başarısız oldu: {e}")
+                    print(f"\n[FasterWhisper] ❌ Auto-download failed: {e}")
                     
             if not cuda_available:
-                print(f"[FasterWhisper] Çökmeyi engellemek için cihaz mecburen 'CPU' olarak ayarlanıyor...")
+                print(f"[FasterWhisper] Falling back to 'CPU' to prevent application crash...")
                 device = "cpu"
 
         self.model = WhisperModel(model_size, device=device, compute_type=compute_type)

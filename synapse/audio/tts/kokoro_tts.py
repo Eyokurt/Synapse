@@ -88,7 +88,7 @@ class KokoroTTSAdapter(BaseTTSAdapter):
                     all_samples.append(samples)
                     final_sample_rate = sample_rate
                 except Exception as e:
-                    print(f"[KokoroTTS] Chunk sentezlenirken hata oluştu: {e}")
+                    print(f"[KokoroTTS] Error occurred while synthesizing chunk: {e}")
                     
             if not all_samples:
                 return final_sample_rate, np.zeros(0, dtype=np.float32)
