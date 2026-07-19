@@ -4,6 +4,7 @@ from synapse.core.memory import Memory
 from synapse.core.event_bus import EventBus
 from synapse.tools.registry import ToolRegistry
 from synapse.llm.base import BaseLLMAdapter
+from typing import Optional
 
 from synapse.config import SynapseConfig, default_config
 

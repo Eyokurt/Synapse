@@ -84,6 +84,8 @@ async def process_voice_async(audio_data: np.ndarray, loop: VoiceLoop, player: A
     loop.streamer.start()
 
 def main():
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding='utf-8')
     load_dotenv()
     print("--- Synapse Voice Chat Demo ---")
     
