@@ -16,43 +16,33 @@ class FasterWhisperSTTAdapter(BaseSTTAdapter):
         self.language = language
         self.model_size = model_size
         
-        try:
-            self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
-        except Exception as e:
-            if device == "auto" or device == "cuda":
-                print(f"[FasterWhisper] GPU başlatılamadı ({e}), CPU'ya düşülüyor...")
-                self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
-            else:
-                raise e
+        # Windows-specific CUDA DLL check to prevent ctranslate2 hard crashes and deadlocks
+        import sys
+        if sys.platform == "win32" and device in ["auto", "cuda"]:
+            import ctypes
+            cuda_available = False
+            for dll_name in ["cublas64_12.dll", "cublas64_11.dll"]:
+                try:
+                    ctypes.CDLL(dll_name)
+                    cuda_available = True
+                    break
+                except OSError:
+                    pass
+            
+            if not cuda_available:
+                print(f"[FasterWhisper] Uyarı: Sisteminizde gerekli CUDA kütüphaneleri bulunamadı (cublas64_12.dll). Çökmeyi engellemek için cihaz 'CPU' olarak ayarlanıyor...")
+                device = "cpu"
+
+        self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
 
     async def transcribe(self, audio_data: np.ndarray, sample_rate: int) -> str:
         import asyncio
         loop = asyncio.get_event_loop()
         
-        # faster-whisper expects float32 in range [-1, 1] which is exactly what we have,
-        # but if it needs 16kHz, we should assure it's 16kHz. 
-        # By default, VoiceLoop config uses 16000Hz, which is whisper's native rate.
-        
         def _call_api():
-            try:
-                # We can pass the numpy array directly to transcribe()
-                segments, info = self.model.transcribe(audio_data, language=self.language, beam_size=5)
-                text = " ".join([segment.text for segment in segments])
-                return text.strip()
-            except Exception as e:
-                # CTranslate2 often delays CUDA loading until first inference.
-                # If it fails here, we re-initialize the model on CPU and retry so audio isn't lost.
-                error_msg = str(e).lower()
-                if "cublas" in error_msg or "cuda" in error_msg or "cudnn" in error_msg:
-                    print(f"\n[FasterWhisper] GPU çalışma zamanı hatası ({e}), CPU ile yeniden deneniyor...")
-                    from faster_whisper import WhisperModel
-                    self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
-                    
-                    segments, info = self.model.transcribe(audio_data, language=self.language, beam_size=5)
-                    text = " ".join([segment.text for segment in segments])
-                    return text.strip()
-                else:
-                    raise e
+            segments, info = self.model.transcribe(audio_data, language=self.language, beam_size=5)
+            text = " ".join([segment.text for segment in segments])
+            return text.strip()
             
         transcription = await loop.run_in_executor(None, _call_api)
         return transcription
