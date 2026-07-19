@@ -54,14 +54,46 @@ class KokoroTTSAdapter(BaseTTSAdapter):
         loop = asyncio.get_event_loop()
         
         def _generate():
-            # Create audio using Kokoro
-            samples, sample_rate = self.kokoro.create(
-                text,
-                voice=self.voice,
-                speed=self.speed,
-                lang="en-us" # Kokoro currently focuses heavily on English (en-us or en-gb)
-            )
-            return sample_rate, samples
+            # Split text into smaller chunks to avoid the 510 phoneme limit
+            import re
+            # Split by punctuation (., !, ?) keeping the punctuation
+            raw_chunks = re.split(r'(?<=[.!?])\s+', text)
+            chunks = []
+            
+            # Further split chunks that are absurdly long (e.g. JSON hallucinations)
+            for c in raw_chunks:
+                c = c.strip()
+                if not c: continue
+                # if still > 200 chars, chunk it forcefully
+                while len(c) > 200:
+                    chunks.append(c[:200])
+                    c = c[200:]
+                if c:
+                    chunks.append(c)
+                    
+            if not chunks:
+                chunks = [text[:200]]
+                
+            all_samples = []
+            final_sample_rate = 24000
+            
+            for chunk in chunks:
+                try:
+                    samples, sample_rate = self.kokoro.create(
+                        chunk,
+                        voice=self.voice,
+                        speed=self.speed,
+                        lang="en-us" # Kokoro currently focuses heavily on English (en-us or en-gb)
+                    )
+                    all_samples.append(samples)
+                    final_sample_rate = sample_rate
+                except Exception as e:
+                    print(f"[KokoroTTS] Chunk sentezlenirken hata oluştu: {e}")
+                    
+            if not all_samples:
+                return final_sample_rate, np.zeros(0, dtype=np.float32)
+                
+            return final_sample_rate, np.concatenate(all_samples)
             
         sample_rate, samples = await loop.run_in_executor(None, _generate)
         return sample_rate, samples
