@@ -14,6 +14,7 @@ class FasterWhisperSTTAdapter(BaseSTTAdapter):
             raise ImportError("Please install faster-whisper package: `pip install faster-whisper`")
             
         self.language = language
+        self.model_size = model_size
         
         try:
             self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
@@ -45,7 +46,7 @@ class FasterWhisperSTTAdapter(BaseSTTAdapter):
                 if "cublas" in error_msg or "cuda" in error_msg or "cudnn" in error_msg:
                     print(f"\n[FasterWhisper] GPU çalışma zamanı hatası ({e}), CPU ile yeniden deneniyor...")
                     from faster_whisper import WhisperModel
-                    self.model = WhisperModel(self.model.model_size, device="cpu", compute_type="int8")
+                    self.model = WhisperModel(self.model_size, device="cpu", compute_type="int8")
                     
                     segments, info = self.model.transcribe(audio_data, language=self.language, beam_size=5)
                     text = " ".join([segment.text for segment in segments])
