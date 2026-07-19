@@ -8,6 +8,7 @@ import warnings
 
 # OpenAI TTS WAV başlıklarında dosya boyutunu sonsuz atadığı için SciPy'ın fırlattığı uyarıları gizle
 warnings.filterwarnings("ignore", category=wav.WavFileWarning)
+warnings.filterwarnings("ignore", category=ResourceWarning)
 
 from dotenv import load_dotenv
 
