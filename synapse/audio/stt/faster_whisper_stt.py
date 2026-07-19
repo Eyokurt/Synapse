@@ -7,7 +7,7 @@ class FasterWhisperSTTAdapter(BaseSTTAdapter):
     Requires `faster-whisper` package.
     Automatically downloads the specified model to the local huggingface cache.
     """
-    def __init__(self, model_size: str = "base", device: str = "cpu", compute_type: str = "int8", language: str = "tr"):
+    def __init__(self, model_size: str = "base", device: str = "auto", compute_type: str = "int8", language: str = "tr"):
         try:
             from faster_whisper import WhisperModel
         except ImportError:
