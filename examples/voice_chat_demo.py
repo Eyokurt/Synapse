@@ -4,6 +4,11 @@ import os
 import sys
 import numpy as np
 import scipy.io.wavfile as wav
+import warnings
+
+# OpenAI TTS WAV başlıklarında dosya boyutunu sonsuz atadığı için SciPy'ın fırlattığı uyarıları gizle
+warnings.filterwarnings("ignore", category=wav.WavFileWarning)
+
 from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -53,8 +58,8 @@ async def process_voice_async(audio_data: np.ndarray, loop: VoiceLoop, player: A
 
         print("[🤖] Synapse düşünüyor...")
         
-        # 3. AgentEngine ile cevap üret
-        ai_response = await engine.process(user_text)
+        # 3. AgentEngine ile cevap üret (agentic_mode=True ile araçları kullanmasını sağla)
+        ai_response = await engine.process(user_text, agentic_mode=True)
         print(f"\n🤖 Synapse: {ai_response}")
 
         print("[🔊] Ses üretiliyor (TTS)...")
