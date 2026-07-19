@@ -7,13 +7,16 @@ requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.117.0",
     "ddgs>=9.14.4",
+    "faster-whisper>=1.2.1",
     "httpx>=0.28.1",
+    "kokoro-onnx>=0.5.0",
     "onnxruntime>=1.27.0",
     "openai>=2.46.0",
     "pydantic>=2.13.4",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "python-dotenv>=1.2.2",
+    "pyttsx3>=2.99",
     "scipy>=1.18.0",
     "sounddevice>=0.5.5",
 ]

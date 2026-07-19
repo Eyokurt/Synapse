@@ -4,7 +4,15 @@ from synapse.core.memory import Memory
 from synapse.core.event_bus import EventBus
 from synapse.tools.registry import ToolRegistry
 from synapse.llm.base import BaseLLMAdapter
-from typing import Optional
+from typing import Optional, Tuple
+import numpy as np
+
+try:
+    from synapse.audio.stt.base import BaseSTTAdapter
+    from synapse.audio.tts.base import BaseTTSAdapter
+except ImportError:
+    BaseSTTAdapter = None
+    BaseTTSAdapter = None
 
 from synapse.config import SynapseConfig, default_config
 
@@ -17,6 +25,8 @@ class AgentEngine:
         memory: Memory,
         event_bus: EventBus,
         tool_registry: ToolRegistry,
+        stt_adapter: Optional['BaseSTTAdapter'] = None,
+        tts_adapter: Optional['BaseTTSAdapter'] = None,
         max_iterations: Optional[int] = None,
         config: Optional[SynapseConfig] = None
     ) -> None:
@@ -25,6 +35,8 @@ class AgentEngine:
         self.memory = memory
         self.event_bus = event_bus
         self.tool_registry = tool_registry
+        self.stt_adapter = stt_adapter
+        self.tts_adapter = tts_adapter
         self.agentic_mode = False
         self.max_iterations = max_iterations or self.config.max_agentic_iterations
 
@@ -44,6 +56,29 @@ class AgentEngine:
         await self.event_bus.emit("on_response", response_text)
         
         return response_text
+
+    async def process_audio(self, audio_data: np.ndarray, sample_rate: int, agentic_mode: bool = False) -> Tuple[str, str, Optional[Tuple[int, np.ndarray]]]:
+        """
+        Takes raw audio data, transcribes it using STT, processes it with the LLM, 
+        and optionally synthesizes the response using TTS.
+        
+        Returns:
+            Tuple containing: (transcribed_user_text, ai_response_text, tts_audio_tuple)
+        """
+        if not self.stt_adapter:
+            raise ValueError("STT adapter is not configured for this AgentEngine.")
+            
+        user_text = await self.stt_adapter.transcribe(audio_data, sample_rate)
+        if not user_text.strip():
+            return ("", "", None)
+            
+        ai_response = await self.process(user_text, agentic_mode=agentic_mode)
+        
+        tts_audio = None
+        if self.tts_adapter and ai_response:
+            tts_audio = await self.tts_adapter.synthesize(ai_response)
+            
+        return (user_text, ai_response, tts_audio)
 
     async def _run_agentic_loop(self, user_input: str) -> str:
         self.memory.add_message("user", user_input)
